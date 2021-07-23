@@ -1,62 +1,66 @@
-body, header, footer, ul, li {
-  margin: 0;
-  padding: 0;
-  line-height: 1.0;
-}
+.cards {
+  border: 1px solid #555 !important;
+  border-bottom: 0 !important;
+  border-radius: 7px 7px 0 0;
 
-
-html {
-  font-size: 62.5%;
-  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", YuGothic, "ヒラギノ角ゴ ProN W3", Hiragino Kaku Gothic ProN, Arial, "メイリオ", Meiryo, sans-serif;
-}
-
-body {
-  font-size: 1.6rem;
-  display: grid;
-  grid-template-rows: auto auto auto;
-  grid-template-columns: 1fr 80% 1fr;
-
-  & > header.site-header {
-    grid-row: 1;
-    grid-column: 2;
-    padding: 3.5rem 0 3rem;
+  & > div {
+    width: 2rem !important;
+    height: 1.25rem;
+    margin: 0.5rem 4rem 0.5rem 0.5rem;
   }
 
-  & > main {
-    grid-row: 2;
-    grid-column: 2;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-column-gap: 5%;
-  }
-
-  & > footer.site-footer {
-    grid-row: 3;
-    grid-column: 2;
-    padding: 3rem 0;
+  &:last-child {
+    padding-bottom: 6rem;
+    border-bottom: 1px solid #555 !important;
+    border-radius: 7px;
   }
 }
 
-section {
-  padding: 2rem 0;
+.card-empty {
+  @extend .cards;
+  border-color: #ccc !important;
 
-  ul {
-    list-style: none;
-
-    li {
-      margin: 1rem 0;
-
-      a {
-        display: block;
-        padding: 1.5rem 1.5rem;
-        font-weight: normal;
-        line-height: 1.6;
-        text-decoration: none;
-        background: hsl(190, 75%, 70%);
-        color: inherit;
-        border-radius: 1.5rem;
-      }
-      
-    }
+  &:last-child {
+    border-bottom: 1px solid #ccc !important;
   }
+}
+
+.cards-foundation {
+  @extend .cards;
+  border-color: #aaa !important;
+
+  &:last-child {
+    border-bottom-color: #aaa !important;
+  }
+}
+
+.cards-selected {
+  @extend .cards;
+  border-color: rgb(229, 84, 0) !important;
+
+  &:last-child {
+    border-bottom-color: rgb(229, 84, 0) !important;
+  }
+}
+
+.foundation-cards {
+  position: relative;
+
+  & .card-foundation-background {
+    position: absolute;
+    height: 8.25rem;
+    width: 6.5rem;
+    font-size: 250%;
+    top: 35%;
+  }
+
+  & .card-foundation-empty {
+    @extend .card-empty;
+    background-color: rgba(255, 255, 255, 0.7);
+  }
+}
+
+.site-header {
+  font-size: 85%;
+  font-family: sans-serif;
 }

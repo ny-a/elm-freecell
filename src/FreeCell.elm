@@ -2,8 +2,6 @@ module FreeCell exposing (..)
 
 import Array exposing (Array)
 import Bitwise
-import StateMonad as SM exposing (StateM)
-import Utils
 
 
 type CardFoundation
@@ -11,7 +9,26 @@ type CardFoundation
 
 
 type DeckTable
-    = DeckTable (List Int) (List Int) (List Int) (List Int) (List Int) (List Int) (List Int) (List Int) (List Int)
+    = DeckTable (List Int) (List Int) (List Int) (List Int) (List Int) (List Int) (List Int) (List Int) (Maybe Int) (Maybe Int) (Maybe Int) (Maybe Int)
+
+
+findMovableCardToFoundation : CardFoundation -> DeckTable -> Maybe Int
+findMovableCardToFoundation foundation table =
+    convertAllHeadOfDeckTableToList table
+        |> List.indexedMap
+            (\idx head ->
+                head
+                    |> Maybe.andThen
+                        (\card ->
+                            if checkCardFoundationAcceptance card foundation then
+                                Just idx
+
+                            else
+                                Nothing
+                        )
+            )
+        |> List.filterMap identity
+        |> List.head
 
 
 moveCardToFoundation : Int -> CardFoundation -> DeckTable -> ( CardFoundation, DeckTable )
@@ -132,12 +149,72 @@ freeFreecellCount table =
     let
         listf =
             convertDeckTableFreecellToList table
+                |> List.filterMap identity
     in
     4 - List.length listf
 
 
 moveCardWithCheck : Int -> Int -> DeckTable -> DeckTable
 moveCardWithCheck fromCol toCol table =
+    if fromCol < 8 && toCol < 8 then
+        moveSerialCardsWithFreeCell fromCol toCol table
+
+    else
+        moveFreecellCardWithCheck fromCol toCol table
+
+
+moveSerialCardsWithFreeCell : Int -> Int -> DeckTable -> DeckTable
+moveSerialCardsWithFreeCell fromCol toCol table =
+    let
+        fromCards =
+            getCardsListFromTable fromCol table
+
+        freeFreecells =
+            freeFreecellCount table
+
+        moveableCards =
+            List.range freeFreecells (freeFreecells + freeDeckColumnCount table)
+                |> List.sum
+                |> (+) 1
+    in
+    fromCards
+        |> List.foldl
+            (\fromCard ( ( ( ( list, isPrevSerial ), idx ), max ), deckTable ) ->
+                let
+                    isSerial =
+                        case List.head list of
+                            Just prevCard ->
+                                (idx < max)
+                                    && isPrevSerial
+                                    && (numberToSuitColorIsRed fromCard /= numberToSuitColorIsRed prevCard)
+                                    && ((fromCard // 4) - 1 == prevCard // 4)
+
+                            Nothing ->
+                                True
+
+                    isMovable =
+                        isSerial
+                            && checkCardMoveability fromCard toCol deckTable
+                in
+                if isMovable then
+                    let
+                        ( tookCards, tookTable ) =
+                            takeCardsFromTable fromCol idx deckTable
+
+                        newTable =
+                            appendCardIntoTable tookCards toCol tookTable
+                    in
+                    ( ( ( ( fromCard :: list, False ), max ), max ), newTable )
+
+                else
+                    ( ( ( ( fromCard :: list, isSerial ), idx + 1 ), max ), deckTable )
+            )
+            ( ( ( ( [], True ), 0 ), moveableCards ), table )
+        |> (\( ( ( _, _ ), _ ), t ) -> t)
+
+
+moveFreecellCardWithCheck : Int -> Int -> DeckTable -> DeckTable
+moveFreecellCardWithCheck fromCol toCol table =
     let
         maybeFromCard =
             getCardFromTable fromCol table
@@ -191,47 +268,27 @@ checkCardMoveability fromCard toCol table =
     satisfyingEmptyCondition || (satisfyingColorCondition && satisfyingNumberCondition)
 
 
+convertAllHeadOfDeckTableToList : DeckTable -> List (Maybe Int)
+convertAllHeadOfDeckTableToList table =
+    List.concat [ List.map List.head <| convertDeckTableToList table, convertDeckTableFreecellToList table ]
+
+
 convertDeckTableToList : DeckTable -> List (List Int)
 convertDeckTableToList table =
     let
-        (DeckTable list1 list2 list3 list4 list5 list6 list7 list8 _) =
+        (DeckTable list1 list2 list3 list4 list5 list6 list7 list8 _ _ _ _) =
             table
     in
     [ list1, list2, list3, list4, list5, list6, list7, list8 ]
 
 
-convertDeckTableFreecellToList : DeckTable -> List Int
+convertDeckTableFreecellToList : DeckTable -> List (Maybe Int)
 convertDeckTableFreecellToList table =
     let
-        (DeckTable _ _ _ _ _ _ _ _ listf) =
+        (DeckTable _ _ _ _ _ _ _ _ free1 free2 free3 free4) =
             table
     in
-    listf
-
-
-transformCardStrForConsole : List (List String) -> String
-transformCardStrForConsole list =
-    let
-        newList =
-            List.take 8 list
-
-        result =
-            List.repeat 7 []
-    in
-    List.foldr
-        (\v res ->
-            List.map2 (::) (List.append v [ "" ]) res
-        )
-        result
-        newList
-        |> List.map (List.map <| String.padLeft 4 ' ')
-        |> List.map String.concat
-        |> String.join "\n"
-
-
-convertDeckTableToCardStr : DeckTable -> List (List String)
-convertDeckTableToCardStr =
-    List.map (List.map numberToCardStr << List.reverse) << convertDeckTableToList
+    [ free1, free2, free3, free4 ]
 
 
 initializeDeck : Int -> DeckTable
@@ -303,286 +360,292 @@ checkCardExistent col table =
             False
 
 
-addCardIntoTable : Int -> Int -> DeckTable -> DeckTable
-addCardIntoTable card col table =
+appendCardIntoTable : List Int -> Int -> DeckTable -> DeckTable
+appendCardIntoTable cards col table =
     let
-        (DeckTable list1 list2 list3 list4 list5 list6 list7 list8 listf) =
+        (DeckTable list1 list2 list3 list4 list5 list6 list7 list8 free1 free2 free3 free4) =
             table
     in
     case col of
         0 ->
-            DeckTable (card :: list1) list2 list3 list4 list5 list6 list7 list8 listf
+            DeckTable (List.append (List.reverse cards) list1) list2 list3 list4 list5 list6 list7 list8 free1 free2 free3 free4
 
         1 ->
-            DeckTable list1 (card :: list2) list3 list4 list5 list6 list7 list8 listf
+            DeckTable list1 (List.append (List.reverse cards) list2) list3 list4 list5 list6 list7 list8 free1 free2 free3 free4
 
         2 ->
-            DeckTable list1 list2 (card :: list3) list4 list5 list6 list7 list8 listf
+            DeckTable list1 list2 (List.append (List.reverse cards) list3) list4 list5 list6 list7 list8 free1 free2 free3 free4
 
         3 ->
-            DeckTable list1 list2 list3 (card :: list4) list5 list6 list7 list8 listf
+            DeckTable list1 list2 list3 (List.append (List.reverse cards) list4) list5 list6 list7 list8 free1 free2 free3 free4
 
         4 ->
-            DeckTable list1 list2 list3 list4 (card :: list5) list6 list7 list8 listf
+            DeckTable list1 list2 list3 list4 (List.append (List.reverse cards) list5) list6 list7 list8 free1 free2 free3 free4
 
         5 ->
-            DeckTable list1 list2 list3 list4 list5 (card :: list6) list7 list8 listf
+            DeckTable list1 list2 list3 list4 list5 (List.append (List.reverse cards) list6) list7 list8 free1 free2 free3 free4
 
         6 ->
-            DeckTable list1 list2 list3 list4 list5 list6 (card :: list7) list8 listf
-
-        7 ->
-            DeckTable list1 list2 list3 list4 list5 list6 list7 (card :: list8) listf
+            DeckTable list1 list2 list3 list4 list5 list6 (List.append (List.reverse cards) list7) list8 free1 free2 free3 free4
 
         _ ->
-            DeckTable list1 list2 list3 list4 list5 list6 list7 list8 (List.append listf [ card ])
+            DeckTable list1 list2 list3 list4 list5 list6 list7 (List.append (List.reverse cards) list8) free1 free2 free3 free4
+
+
+addCardIntoTable : Int -> Int -> DeckTable -> DeckTable
+addCardIntoTable card col table =
+    let
+        (DeckTable list1 list2 list3 list4 list5 list6 list7 list8 free1 free2 free3 free4) =
+            table
+    in
+    case col of
+        0 ->
+            DeckTable (card :: list1) list2 list3 list4 list5 list6 list7 list8 free1 free2 free3 free4
+
+        1 ->
+            DeckTable list1 (card :: list2) list3 list4 list5 list6 list7 list8 free1 free2 free3 free4
+
+        2 ->
+            DeckTable list1 list2 (card :: list3) list4 list5 list6 list7 list8 free1 free2 free3 free4
+
+        3 ->
+            DeckTable list1 list2 list3 (card :: list4) list5 list6 list7 list8 free1 free2 free3 free4
+
+        4 ->
+            DeckTable list1 list2 list3 list4 (card :: list5) list6 list7 list8 free1 free2 free3 free4
+
+        5 ->
+            DeckTable list1 list2 list3 list4 list5 (card :: list6) list7 list8 free1 free2 free3 free4
+
+        6 ->
+            DeckTable list1 list2 list3 list4 list5 list6 (card :: list7) list8 free1 free2 free3 free4
+
+        7 ->
+            DeckTable list1 list2 list3 list4 list5 list6 list7 (card :: list8) free1 free2 free3 free4
+
+        8 ->
+            DeckTable list1 list2 list3 list4 list5 list6 list7 list8 (Just card) free2 free3 free4
+
+        9 ->
+            DeckTable list1 list2 list3 list4 list5 list6 list7 list8 free1 (Just card) free3 free4
+
+        10 ->
+            DeckTable list1 list2 list3 list4 list5 list6 list7 list8 free1 free2 (Just card) free4
+
+        _ ->
+            DeckTable list1 list2 list3 list4 list5 list6 list7 list8 free1 free2 free3 (Just card)
+
+
+getCardsListFromTable : Int -> DeckTable -> List Int
+getCardsListFromTable col table =
+    let
+        (DeckTable list1 list2 list3 list4 list5 list6 list7 list8 _ _ _ _) =
+            table
+    in
+    case col of
+        0 ->
+            list1
+
+        1 ->
+            list2
+
+        2 ->
+            list3
+
+        3 ->
+            list4
+
+        4 ->
+            list5
+
+        5 ->
+            list6
+
+        6 ->
+            list7
+
+        _ ->
+            list8
+
+
+takeCardsFromTable : Int -> Int -> DeckTable -> ( List Int, DeckTable )
+takeCardsFromTable col num table =
+    List.range 0 num
+        |> List.foldl
+            (\idx ( list, deckTable ) ->
+                let
+                    ( maybeCard, newTable ) =
+                        getCardFromTable col deckTable
+                in
+                ( maybeCard :: list, newTable )
+            )
+            ( [], table )
+        |> (\( list, t ) -> ( List.filterMap identity list, t ))
 
 
 getCardFromTable : Int -> DeckTable -> ( Maybe Int, DeckTable )
 getCardFromTable col table =
     let
-        (DeckTable list1 list2 list3 list4 list5 list6 list7 list8 listf) =
+        (DeckTable list1 list2 list3 list4 list5 list6 list7 list8 free1 free2 free3 free4) =
             table
+
+        helper list =
+            ( List.head list, List.tail list |> Maybe.withDefault [] )
     in
     case col of
         0 ->
             let
                 ( maybeValue, newList ) =
-                    case list1 of
-                        x :: xs ->
-                            ( Just x, xs )
-
-                        [] ->
-                            ( Nothing, [] )
+                    helper list1
             in
-            DeckTable newList list2 list3 list4 list5 list6 list7 list8 listf
+            DeckTable newList list2 list3 list4 list5 list6 list7 list8 free1 free2 free3 free4
                 |> Tuple.pair maybeValue
 
         1 ->
             let
                 ( maybeValue, newList ) =
-                    case list2 of
-                        x :: xs ->
-                            ( Just x, xs )
-
-                        [] ->
-                            ( Nothing, [] )
+                    helper list2
             in
-            DeckTable list1 newList list3 list4 list5 list6 list7 list8 listf
+            DeckTable list1 newList list3 list4 list5 list6 list7 list8 free1 free2 free3 free4
                 |> Tuple.pair maybeValue
 
         2 ->
             let
                 ( maybeValue, newList ) =
-                    case list3 of
-                        x :: xs ->
-                            ( Just x, xs )
-
-                        [] ->
-                            ( Nothing, [] )
+                    helper list3
             in
-            DeckTable list1 list2 newList list4 list5 list6 list7 list8 listf
+            DeckTable list1 list2 newList list4 list5 list6 list7 list8 free1 free2 free3 free4
                 |> Tuple.pair maybeValue
 
         3 ->
             let
                 ( maybeValue, newList ) =
-                    case list4 of
-                        x :: xs ->
-                            ( Just x, xs )
-
-                        [] ->
-                            ( Nothing, [] )
+                    helper list4
             in
-            DeckTable list1 list2 list3 newList list5 list6 list7 list8 listf
+            DeckTable list1 list2 list3 newList list5 list6 list7 list8 free1 free2 free3 free4
                 |> Tuple.pair maybeValue
 
         4 ->
             let
                 ( maybeValue, newList ) =
-                    case list5 of
-                        x :: xs ->
-                            ( Just x, xs )
-
-                        [] ->
-                            ( Nothing, [] )
+                    helper list5
             in
-            DeckTable list1 list2 list3 list4 newList list6 list7 list8 listf
+            DeckTable list1 list2 list3 list4 newList list6 list7 list8 free1 free2 free3 free4
                 |> Tuple.pair maybeValue
 
         5 ->
             let
                 ( maybeValue, newList ) =
-                    case list6 of
-                        x :: xs ->
-                            ( Just x, xs )
-
-                        [] ->
-                            ( Nothing, [] )
+                    helper list6
             in
-            DeckTable list1 list2 list3 list4 list5 newList list7 list8 listf
+            DeckTable list1 list2 list3 list4 list5 newList list7 list8 free1 free2 free3 free4
                 |> Tuple.pair maybeValue
 
         6 ->
             let
                 ( maybeValue, newList ) =
-                    case list7 of
-                        x :: xs ->
-                            ( Just x, xs )
-
-                        [] ->
-                            ( Nothing, [] )
+                    helper list7
             in
-            DeckTable list1 list2 list3 list4 list5 list6 newList list8 listf
+            DeckTable list1 list2 list3 list4 list5 list6 newList list8 free1 free2 free3 free4
                 |> Tuple.pair maybeValue
 
         7 ->
             let
                 ( maybeValue, newList ) =
-                    case list8 of
-                        x :: xs ->
-                            ( Just x, xs )
-
-                        [] ->
-                            ( Nothing, [] )
+                    helper list8
             in
-            DeckTable list1 list2 list3 list4 list5 list6 list7 newList listf
+            DeckTable list1 list2 list3 list4 list5 list6 list7 newList free1 free2 free3 free4
                 |> Tuple.pair maybeValue
 
         8 ->
-            let
-                ( maybeValue, newList ) =
-                    case listf of
-                        x :: xs ->
-                            ( Just x, xs )
-
-                        [] ->
-                            ( Nothing, listf )
-            in
-            DeckTable list1 list2 list3 list4 list5 list6 list7 list8 newList
-                |> Tuple.pair maybeValue
+            DeckTable list1 list2 list3 list4 list5 list6 list7 list8 Nothing free2 free3 free4
+                |> Tuple.pair free1
 
         9 ->
-            let
-                ( maybeValue, newList ) =
-                    case listf of
-                        x1 :: x :: xs ->
-                            ( Just x, x1 :: xs )
-
-                        _ ->
-                            ( Nothing, listf )
-            in
-            DeckTable list1 list2 list3 list4 list5 list6 list7 list8 newList
-                |> Tuple.pair maybeValue
+            DeckTable list1 list2 list3 list4 list5 list6 list7 list8 free1 Nothing free3 free4
+                |> Tuple.pair free2
 
         10 ->
-            let
-                ( maybeValue, newList ) =
-                    case listf of
-                        x1 :: x2 :: x :: xs ->
-                            ( Just x, x1 :: x2 :: xs )
-
-                        _ ->
-                            ( Nothing, listf )
-            in
-            DeckTable list1 list2 list3 list4 list5 list6 list7 list8 newList
-                |> Tuple.pair maybeValue
+            DeckTable list1 list2 list3 list4 list5 list6 list7 list8 free1 free2 Nothing free4
+                |> Tuple.pair free3
 
         _ ->
-            let
-                ( maybeValue, newList ) =
-                    case listf of
-                        x1 :: x2 :: x3 :: x :: xs ->
-                            ( Just x, x1 :: x2 :: x3 :: xs )
+            DeckTable list1 list2 list3 list4 list5 list6 list7 list8 free1 free2 free3 Nothing
+                |> Tuple.pair free4
 
-                        _ ->
-                            ( Nothing, listf )
-            in
-            DeckTable list1 list2 list3 list4 list5 list6 list7 list8 newList
-                |> Tuple.pair maybeValue
+
+initialDeckTable : DeckTable
+initialDeckTable =
+    DeckTable [] [] [] [] [] [] [] [] Nothing Nothing Nothing Nothing
+
+
+initializerCardTable : Array Int
+initializerCardTable =
+    List.range 0 51
+        |> Array.fromList
+
+
+
+-- Random Generator
 
 
 generateRandomList : Int -> Int -> List Int
 generateRandomList length init =
     let
-        helper _ ( randSM, list ) =
+        helper _ ( state, list ) =
             let
-                newState =
-                    randSM |> SM.bind rand
-
-                randValue =
-                    SM.evalState newState init
+                ( randValue, newState ) =
+                    rand state
             in
             ( newState, randValue :: list )
     in
     List.repeat length ()
-        |> List.foldl helper ( initialRandState, [] )
+        |> List.foldl helper ( init, [] )
         |> Tuple.second
         |> List.reverse
 
 
-initialRandState : StateM Int Int
-initialRandState =
-    SM.return 0
-
-
-rand : a -> StateM Int Int
-rand _ =
-    SM.get
-        |> SM.bind
-            (\state ->
-                let
-                    newState =
-                        (state * 214013) + 2531011 |> modBy (2 ^ 31)
-                in
-                SM.put newState
-                    |> SM.bind
-                        (always
-                            (SM.return <|
-                                (newState |> Bitwise.shiftRightZfBy 16)
-                            )
-                        )
-            )
+rand : Int -> ( Int, Int )
+rand state =
+    let
+        newState =
+            (state * 214013) + 2531011 |> modBy (2 ^ 31)
+    in
+    ( newState |> Bitwise.shiftRightZfBy 16, newState )
 
 
 
--- alternative implementation
+-- Representation
 
 
-rand2 : a -> StateM Int Int
-rand2 _ =
-    SM.get
-        |> SM.bind
-            (\state ->
-                let
-                    newState =
-                        ((state + 10) |> Bitwise.shiftLeftBy 18) - state * 48131 - 90429 |> modBy (2 ^ 31)
-                in
-                SM.put newState
-                    |> SM.bind
-                        (always
-                            (SM.return <|
-                                ((newState |> Bitwise.shiftLeftBy 1) |> Bitwise.shiftRightZfBy 17)
-                            )
-                        )
-            )
+transformCardStrForConsole : List (List String) -> String
+transformCardStrForConsole list =
+    let
+        newList =
+            List.take 8 list
+
+        result =
+            List.repeat 7 []
+    in
+    List.foldr
+        (\v res ->
+            List.map2 (::) (List.append v [ "" ]) res
+        )
+        result
+        newList
+        |> List.map (List.map <| String.padLeft 4 ' ')
+        |> List.map String.concat
+        |> String.join "\n"
 
 
-initialDeckTable : DeckTable
-initialDeckTable =
-    DeckTable [] [] [] [] [] [] [] [] []
-
-
-initializerCardTable : Array Int
-initializerCardTable =
-    List.repeat 52 0
-        |> List.indexedMap (\idx _ -> idx)
-        |> Array.fromList
+convertDeckTableToCardStr : DeckTable -> List (List String)
+convertDeckTableToCardStr =
+    List.map (List.map numberToCardStr << List.reverse) << convertDeckTableToList
 
 
 numberToCardStr : Int -> String
 numberToCardStr num =
-    String.append (numberToNumberStr num) (numberToSuites num)
+    String.concat [ numberToNumberStr num, " ", numberToSuites num ]
 
 
 numberToSuitColorIsRed : Int -> Bool
