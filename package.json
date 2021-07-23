@@ -9,7 +9,7 @@
     "watch:html": "cpx -w src/index.html docs",
     "watch:assets": "cpx -w \"src/assets/**/*\" docs/assets",
     "watch:js": "cpx -w src/main.js docs",
-    "watch:elm": "wait-on docs/style.css && elm-live src/Main.elm --open --start-page=index.html --dir=docs -- --output=docs/elm.js",
+    "watch:elm": "wait-on docs/style.css && elm-live src/Main.elm -H --start-page=index.html --dir=docs -- --output=docs/elm.js",
     "watch:sass": "sass --watch src:docs",
     "watch": "npm-run-all -p watch:*",
     "compile:html": "cpx src/index.html docs",
