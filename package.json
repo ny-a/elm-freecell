@@ -1,9 +1,7 @@
 {
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/y047aka/elm-starfighter.git"
-  },
-  "license": "CC0-1.0",
+  "name": "elm-freecell",
+  "version": "1.0.0",
+  "description": "",
   "scripts": {
     "clean": "rimraf docs",
     "watch:html": "cpx -w src/index.html docs",
@@ -23,15 +21,24 @@
     "start": "npm-run-all -s clean watch",
     "test": "elm-test"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ny-a/elm-freecell.git"
+  },
+  "author": "Ny-a",
+  "bugs": {
+    "url": "https://github.com/ny-a/elm-freecell/issues"
+  },
+  "homepage": "https://github.com/ny-a/elm-freecell#readme",
   "devDependencies": {
     "cpx": "^1.5.0",
-    "elm": "0.19.0-bugfix6",
-    "elm-live": "3.4.0",
-    "elm-test": "^0.19.0-rev6",
-    "google-closure-compiler": "^20190819.0.0",
+    "elm": "^0.19.1-5",
+    "elm-live": "^4.0.2",
+    "elm-test": "^0.19.1-revision7",
+    "google-closure-compiler": "^20210601.0.0",
     "npm-run-all": "^4.1.5",
-    "rimraf": "^3.0.0",
-    "sass": "^1.22.10",
-    "wait-on": "^3.3.0"
+    "rimraf": "^3.0.2",
+    "sass": "^1.37.0",
+    "wait-on": "^6.0.0"
   }
 }
