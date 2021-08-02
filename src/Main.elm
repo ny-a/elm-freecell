@@ -153,20 +153,37 @@ view model =
         viewOfFreecellApp model
 
 
+gray : Element.Color
+gray = rgb255 238 238 238
+
+
 viewOfFreecellApp : Model -> Element Msg
 viewOfFreecellApp model =
     column [ spacing 20 ]
         [ Element.html <|
             Html.header [ Html.Attributes.class "site-header" ]
                 [ Html.h1 [] [ Html.text "Freecell" ] ]
-        , row []
+        , row [ spacing 20 ]
             [ Element.Input.text []
                 { onChange = UpdateNewGameNum
                 , text = String.fromInt model.newGameNum
                 , placeholder = Nothing
                 , label = Element.Input.labelLeft [] <| text "NewGameNumber: "
                 }
-            , Element.Input.button [] { onPress = Just StartNewGame, label = text "StartNewGame" }
+            , Element.Input.button
+                [ Element.padding 5
+                , Element.Border.rounded 5
+                , Element.Background.color gray
+                ]
+                { onPress = Just StartNewGame, label = text "StartNewGame" }
+            , Element.Input.button
+                [ Element.padding 5
+                , Element.Border.rounded 5
+                , Element.Background.color gray
+                ]
+                { onPress = Just StartRandomGame
+                , label = text "StartRandomGame"
+                }
             ]
         , viewOfFreecellDeck model
         ]
