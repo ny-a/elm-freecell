@@ -86,7 +86,10 @@ update msg model =
                 newModel =
                     case model.selectedCol of
                         Just beforeCol ->
-                            { model | deckTable = moveCardWithCheck beforeCol col model.deckTable, selectedCol = Nothing }
+                            { model
+                            | deckTable = moveCardWithCheck beforeCol col model.deckTable,
+                            selectedCol = Nothing
+                            }
                                 |> withCheckingFoundationMovability
 
                         Nothing ->
@@ -113,23 +116,34 @@ update msg model =
                         Nothing ->
                             ( model.cardFoundation, model.deckTable )
             in
-            { model | cardFoundation = foundation, deckTable = deckTable, selectedCol = Nothing }
+            { model
+            | cardFoundation = foundation
+            , deckTable = deckTable
+            , selectedCol = Nothing
+            }
                 |> withCheckingFoundationMovability
 
         CheckFoundationMovability maybeCol ->
             case maybeCol of
                 Just _ ->
-                    update MoveCardToFoundation { model | selectedCol = maybeCol }
+                    update MoveCardToFoundation
+                        { model | selectedCol = maybeCol }
 
                 Nothing ->
                     model |> withNoneCmd
 
         UpdateNewGameNum newGameNum ->
-            { model | newGameNum = Maybe.withDefault 0 <| String.toInt newGameNum }
+            { model
+            | newGameNum = Maybe.withDefault 0 <| String.toInt newGameNum
+            }
                 |> withNoneCmd
 
         StartNewGame ->
-            { model | deckTable = initializeDeck model.newGameNum, selectedCol = Nothing, cardFoundation = initialCardFoundation }
+            { model
+            | deckTable = initializeDeck model.newGameNum
+            , selectedCol = Nothing
+            , cardFoundation = initialCardFoundation
+            }
                 |> withNoneCmd
 
         StartNewGameWithGameNumber newGameNum ->
