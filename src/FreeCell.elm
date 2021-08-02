@@ -707,4 +707,4 @@ numberToNumberStr num =
     List.filter ((==) idx << Tuple.first) numberToNumberStrTable
         |> List.head
         |> Maybe.map Tuple.second
-        |> Maybe.withDefault "souldn't occur"
+        |> Maybe.withDefault "shouldn't occur"
