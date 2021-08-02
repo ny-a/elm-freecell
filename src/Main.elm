@@ -11,6 +11,7 @@ import FreeCell exposing (..)
 import Html exposing (Html)
 import Html.Attributes
 import Task
+import Random
 
 
 main : Program () Model Msg
@@ -37,9 +38,8 @@ type alias Model =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Model (initializeDeck initialNewGameNum) Nothing initialCardFoundation initialNewGameNum
-    , Cmd.none
-    )
+    Model (initializeDeck initialNewGameNum) Nothing initialCardFoundation initialNewGameNum
+        |> withStartRandomNewGame
 
 
 initialNewGameNum : Int
@@ -58,6 +58,12 @@ withCheckingFoundationMovability model =
         |> Tuple.pair model
 
 
+withStartRandomNewGame : Model -> ( Model, Cmd Msg )
+withStartRandomNewGame model =
+    Random.generate StartNewGameWithGameNumber (Random.int 1 1000000)
+        |> Tuple.pair model
+
+
 
 -- UPDATE
 
@@ -68,6 +74,8 @@ type Msg
     | CheckFoundationMovability (Maybe Int)
     | UpdateNewGameNum String
     | StartNewGame
+    | StartNewGameWithGameNumber Int
+    | StartRandomGame
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -124,6 +132,16 @@ update msg model =
             { model | deckTable = initializeDeck model.newGameNum, selectedCol = Nothing, cardFoundation = initialCardFoundation }
                 |> withNoneCmd
 
+        StartNewGameWithGameNumber newGameNum ->
+            { model
+            | newGameNum = newGameNum
+            }
+                |> update StartNewGame
+                |> Tuple.first
+                |> withNoneCmd
+
+        StartRandomGame ->
+            withStartRandomNewGame model
 
 
 -- VIEW
